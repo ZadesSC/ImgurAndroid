@@ -27,6 +27,7 @@ import retrofit.client.Response;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class MainActivity extends Activity implements View.OnClickListener, AdapterView.OnItemClickListener,AbsListView.OnScrollListener {
@@ -37,6 +38,9 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
     private ImageListAdapter adapter;
 
+    private AtomicBoolean currentlyProcessingAPI;
+    private AtomicBoolean isDefaultGallery;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -44,6 +48,9 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
         //show default gallery
         this.adapter = null;
+
+        this.currentlyProcessingAPI = new AtomicBoolean(false);
+        this.isDefaultGallery = new AtomicBoolean(true);
 
         this.callback = new Callback<GalleryData>() {
             @Override
@@ -67,13 +74,15 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
                 listView.setAdapter(adapter);
 
+                currentlyProcessingAPI.set(false);
+
                 Log.d(TAG, response.toString());
                 Log.d(TAG, "Size of Dataset: " + data.getData().size());
             }
 
             @Override
             public void failure(RetrofitError error){
-
+                currentlyProcessingAPI.set(false);
             }
         };
 
@@ -82,7 +91,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         this.adapter = new ImageListAdapter(this.getApplicationContext(), R.layout.list_item, data);
 
         api = new ImgurAPI();
-        api.showDefaultGallery(this.callback);
+        currentlyProcessingAPI.set(true);
+        api.showDefaultGallery(this.callback, 0);
 
         //implement button listener
         Button searchButton = (Button) this.findViewById(R.id.button);
@@ -123,8 +133,13 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
     @Override
     public void onClick(View v) {
+        this.isDefaultGallery.set(false);
+
+        this.adapter.list = new ArrayList<>(100);
+        this.adapter.notifyDataSetChanged();
+
         EditText text = (EditText) findViewById(R.id.editText);
-        this.api.searchImgur(text.getText().toString(), this.callback);
+        this.api.searchImgur(this.callback, text.getText().toString(), 0);
     }
 
     @Override
@@ -144,7 +159,30 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
     @Override
     public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
 
-        //Checks to load more data to the list, the 5 is used as padding
+        //Load more data
+        //Loads next page once 90% through first page, rounds up
+        int threshhold = (int)Math.ceil(this.adapter.imageLocation * 0.9);
+        if(firstVisibleItem + visibleItemCount >= threshhold)
+        {
+            //call next page api if api is not currently being called already
+            if(!this.currentlyProcessingAPI.get())
+            {
+                //if default gallery
+                if(this.isDefaultGallery.get())
+                {
+                    this.api.showDefaultGallery(this.callback, this.adapter.pagesLoaded);
+                    this.adapter.pagesLoaded++;
+                }
+                else
+                {
+                    EditText text = (EditText) findViewById(R.id.editText);
+                    this.api.searchImgur(this.callback, text.getText().toString(), this.adapter.pagesLoaded);
+                    this.adapter.pagesLoaded++;
+                }
+            }
+        }
+
+        //Load more empty spaces
         if(firstVisibleItem + visibleItemCount + 5 >= totalItemCount)
         {
             this.adapter.loadMoreData();

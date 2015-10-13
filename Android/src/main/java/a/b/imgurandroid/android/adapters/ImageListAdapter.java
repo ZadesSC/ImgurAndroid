@@ -25,6 +25,7 @@ public class ImageListAdapter extends ArrayAdapter<ImageData>
     private final Context context;
     public List<ImageData> list;
     public int imageLocation;
+    public int pagesLoaded; //for paging
 
     public ImageListAdapter(Context context, int resource, List<ImageData> images)
     {
@@ -32,6 +33,7 @@ public class ImageListAdapter extends ArrayAdapter<ImageData>
         this.list = images;
         this.context = context;
         this.imageLocation = 0;
+        this.pagesLoaded = 0;
     }
 
     /**

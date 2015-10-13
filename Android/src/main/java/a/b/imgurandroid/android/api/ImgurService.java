@@ -16,13 +16,13 @@ import java.util.List;
  */
 public interface ImgurService {
 
-    @GET("/gallery")
+    @GET("/gallery/hot/viral/{page}")
     void getGallery(
-            Callback<GalleryData> callback
-    );
+            @Path("page") int page, Callback<GalleryData> callback
+            );
 
-    @GET("/gallery/search/")
+    @GET("/gallery/search/time/{page}")
     void getSearchResults(
-            @Query("q") String search, Callback<GalleryData> callback
-    );
+            @Query("q") String search, @Path("page") int page, Callback<GalleryData> callback
+            );
 }
