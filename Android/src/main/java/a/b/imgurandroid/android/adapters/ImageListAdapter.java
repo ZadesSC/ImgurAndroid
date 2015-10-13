@@ -36,6 +36,14 @@ public class ImageListAdapter extends ArrayAdapter<ImageData>
         this.pagesLoaded = 0;
     }
 
+    //Called to reset adapter for new data
+    public synchronized void reset()
+    {
+        this.list = new ArrayList<>(100);
+        this.imageLocation = 0;
+        this.pagesLoaded = 0;
+    }
+
     /**
      * adds images from api call
      * @param images

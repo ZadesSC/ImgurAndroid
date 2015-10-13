@@ -135,7 +135,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
     public void onClick(View v) {
         this.isDefaultGallery.set(false);
 
-        this.adapter.list = new ArrayList<>(100);
+        this.adapter.reset();
         this.adapter.notifyDataSetChanged();
 
         EditText text = (EditText) findViewById(R.id.editText);
@@ -167,6 +167,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
             //call next page api if api is not currently being called already
             if(!this.currentlyProcessingAPI.get())
             {
+                this.currentlyProcessingAPI.set(true);
                 //if default gallery
                 if(this.isDefaultGallery.get())
                 {
