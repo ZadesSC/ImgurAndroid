@@ -29,11 +29,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class MainActivity extends Activity implements View.OnClickListener, AdapterView.OnItemClickListener {
+public class MainActivity extends Activity implements View.OnClickListener, AdapterView.OnItemClickListener,AbsListView.OnScrollListener {
 
     private final String TAG = "MainActivity";
     private Callback<GalleryData> callback;
     private ImgurAPI api;
+
+    private ImageListAdapter adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,6 +43,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         setContentView(R.layout.activity_main);
 
         //show default gallery
+        this.adapter = null;
 
         this.callback = new Callback<GalleryData>() {
             @Override
@@ -58,7 +61,11 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
                         filteredData.add(image);
                     }
                 }
-                listView.setAdapter(new ImageListAdapter(getApplicationContext(), R.layout.list_item, filteredData));
+
+                //adapter = new ImageListAdapter(getApplicationContext(), R.layout.list_item, filteredData);
+                adapter.addData(filteredData);
+
+                listView.setAdapter(adapter);
 
                 Log.d(TAG, response.toString());
                 Log.d(TAG, "Size of Dataset: " + data.getData().size());
@@ -69,6 +76,10 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
             }
         };
+
+        //set default adapter list
+        ArrayList<ImageData> data = new ArrayList<ImageData>(100);
+        this.adapter = new ImageListAdapter(this.getApplicationContext(), R.layout.list_item, data);
 
         api = new ImgurAPI();
         api.showDefaultGallery(this.callback);
@@ -83,6 +94,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         listView.setOnItemClickListener(this);
         listView.setClickable(true);
 
+        //add scroll listener
+        listView.setOnScrollListener(this);
     }
 
 
@@ -121,5 +134,22 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         intent.putExtra("URL", ((ImageListAdapter)parent.getAdapter()).list.get(position).getLink());
 
         this.startActivity(intent);
+    }
+
+    @Override
+    public void onScrollStateChanged(AbsListView view, int scrollState) {
+
+    }
+
+    @Override
+    public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
+
+        //Checks to load more data to the list, the 5 is used as padding
+        if(firstVisibleItem + visibleItemCount + 5 >= totalItemCount)
+        {
+            this.adapter.loadMoreData();
+        }
+
+        Log.d("onscroll", firstVisibleItem + " " + visibleItemCount + " " + totalItemCount );
     }
 }
