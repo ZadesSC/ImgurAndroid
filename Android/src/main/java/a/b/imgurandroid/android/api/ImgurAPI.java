@@ -33,13 +33,13 @@ public class ImgurAPI {
         this.service = restAdapter.create(ImgurService.class);
     }
 
-    public void searchImgur(String search, Callback<GalleryData> callback)
+    public void searchImgur(Callback<GalleryData> callback, String search, int page)
     {
-        this.service.getSearchResults(search, callback);
+        this.service.getSearchResults(search, page, callback);
     }
 
-    public void showDefaultGallery(Callback<GalleryData> callback)
+    public void showDefaultGallery(Callback<GalleryData> callback, int page)
     {
-        this.service.getGallery(callback);
+        this.service.getGallery(page, callback);
     }
 }

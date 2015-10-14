@@ -6,6 +6,7 @@ import a.b.imgurandroid.android.viewholders.ImageViewHolder;
 import android.app.Activity;
 import android.content.Context;
 import android.text.Layout;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,6 +14,7 @@ import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import com.squareup.picasso.Picasso;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -22,12 +24,52 @@ public class ImageListAdapter extends ArrayAdapter<ImageData>
 {
     private final Context context;
     public List<ImageData> list;
+    public int imageLocation;
+    public int pagesLoaded; //for paging
 
     public ImageListAdapter(Context context, int resource, List<ImageData> images)
     {
         super(context, resource, images);
         this.list = images;
         this.context = context;
+        this.imageLocation = 0;
+        this.pagesLoaded = 0;
+    }
+
+    //Called to reset adapter for new data
+    public synchronized void reset()
+    {
+        this.list = new ArrayList<>(100);
+        this.imageLocation = 0;
+        this.pagesLoaded = 0;
+    }
+
+    /**
+     * adds images from api call
+     * @param images
+     */
+    public synchronized void addData(List<ImageData> images)
+    {
+        for(ImageData data: images)
+        {
+            if(this.imageLocation >= this.list.size())
+            {
+                this.loadMoreData();
+            }
+            this.list.set(this.imageLocation, data);
+            this.imageLocation++;
+        }
+        this.notifyDataSetChanged();
+    }
+
+    /**
+     * Loads empty spaces
+     */
+    public synchronized void loadMoreData()
+    {
+        this.list.add(new ImageData());
+        this.notifyDataSetChanged();
+        Log.d("loadmoredata", "test");
     }
 
     @Override

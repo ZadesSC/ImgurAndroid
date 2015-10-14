@@ -27,13 +27,19 @@ import retrofit.client.Response;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
-public class MainActivity extends Activity implements View.OnClickListener, AdapterView.OnItemClickListener {
+public class MainActivity extends Activity implements View.OnClickListener, AdapterView.OnItemClickListener,AbsListView.OnScrollListener {
 
     private final String TAG = "MainActivity";
     private Callback<GalleryData> callback;
     private ImgurAPI api;
+
+    private ImageListAdapter adapter;
+
+    private AtomicBoolean currentlyProcessingAPI;
+    private AtomicBoolean isDefaultGallery;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,6 +47,10 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         setContentView(R.layout.activity_main);
 
         //show default gallery
+        this.adapter = null;
+
+        this.currentlyProcessingAPI = new AtomicBoolean(false);
+        this.isDefaultGallery = new AtomicBoolean(true);
 
         this.callback = new Callback<GalleryData>() {
             @Override
@@ -58,7 +68,13 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
                         filteredData.add(image);
                     }
                 }
-                listView.setAdapter(new ImageListAdapter(getApplicationContext(), R.layout.list_item, filteredData));
+
+                //adapter = new ImageListAdapter(getApplicationContext(), R.layout.list_item, filteredData);
+                adapter.addData(filteredData);
+
+                listView.setAdapter(adapter);
+
+                currentlyProcessingAPI.set(false);
 
                 Log.d(TAG, response.toString());
                 Log.d(TAG, "Size of Dataset: " + data.getData().size());
@@ -66,12 +82,17 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
             @Override
             public void failure(RetrofitError error){
-
+                currentlyProcessingAPI.set(false);
             }
         };
 
+        //set default adapter list
+        ArrayList<ImageData> data = new ArrayList<ImageData>(100);
+        this.adapter = new ImageListAdapter(this.getApplicationContext(), R.layout.list_item, data);
+
         api = new ImgurAPI();
-        api.showDefaultGallery(this.callback);
+        currentlyProcessingAPI.set(true);
+        api.showDefaultGallery(this.callback, 0);
 
         //implement button listener
         Button searchButton = (Button) this.findViewById(R.id.button);
@@ -83,6 +104,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         listView.setOnItemClickListener(this);
         listView.setClickable(true);
 
+        //add scroll listener
+        listView.setOnScrollListener(this);
     }
 
 
@@ -110,8 +133,13 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
     @Override
     public void onClick(View v) {
+        this.isDefaultGallery.set(false);
+
+        this.adapter.reset();
+        this.adapter.notifyDataSetChanged();
+
         EditText text = (EditText) findViewById(R.id.editText);
-        this.api.searchImgur(text.getText().toString(), this.callback);
+        this.api.searchImgur(this.callback, text.getText().toString(), 0);
     }
 
     @Override
@@ -121,5 +149,46 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         intent.putExtra("URL", ((ImageListAdapter)parent.getAdapter()).list.get(position).getLink());
 
         this.startActivity(intent);
+    }
+
+    @Override
+    public void onScrollStateChanged(AbsListView view, int scrollState) {
+
+    }
+
+    @Override
+    public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
+
+        //Load more data
+        //Loads next page once 90% through first page, rounds up
+        int threshhold = (int)Math.ceil(this.adapter.imageLocation * 0.9);
+        if(firstVisibleItem + visibleItemCount >= threshhold)
+        {
+            //call next page api if api is not currently being called already
+            if(!this.currentlyProcessingAPI.get())
+            {
+                this.currentlyProcessingAPI.set(true);
+                //if default gallery
+                if(this.isDefaultGallery.get())
+                {
+                    this.api.showDefaultGallery(this.callback, this.adapter.pagesLoaded);
+                    this.adapter.pagesLoaded++;
+                }
+                else
+                {
+                    EditText text = (EditText) findViewById(R.id.editText);
+                    this.api.searchImgur(this.callback, text.getText().toString(), this.adapter.pagesLoaded);
+                    this.adapter.pagesLoaded++;
+                }
+            }
+        }
+
+        //Load more empty spaces
+        if(firstVisibleItem + visibleItemCount + 5 >= totalItemCount)
+        {
+            this.adapter.loadMoreData();
+        }
+
+        Log.d("onscroll", firstVisibleItem + " " + visibleItemCount + " " + totalItemCount );
     }
 }
