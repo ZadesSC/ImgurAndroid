@@ -5,25 +5,20 @@ import a.b.imgurandroid.android.adapters.ImageListAdapter;
 import a.b.imgurandroid.android.api.ImgurAPI;
 import a.b.imgurandroid.android.api.pojo.GalleryData;
 import a.b.imgurandroid.android.api.pojo.ImageData;
-import a.b.imgurandroid.android.viewholders.ImageViewHolder;
 import android.app.Activity;
-import android.content.DialogInterface;
 import android.content.Intent;
-import android.media.Image;
-import android.support.v7.app.ActionBarActivity;
-import android.support.v7.app.ActionBar;
-import android.support.v4.app.Fragment;
+
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.*;
+import retrofit.Call;
 import retrofit.Callback;
-import retrofit.RetrofitError;
-import retrofit.client.Response;
+import retrofit.Response;
+import retrofit.Retrofit;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +29,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
     private final String TAG = "MainActivity";
     private Callback<GalleryData> callback;
+    private Call<GalleryData> call;
     private ImgurAPI api;
 
     private ImageListAdapter adapter;
@@ -58,14 +54,16 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         this.currentlyProcessingAPI = new AtomicBoolean(false);
         this.isDefaultGallery = new AtomicBoolean(true);
 
+        //move this section out?
         this.callback = new Callback<GalleryData>() {
             @Override
-            public void success(GalleryData data, Response response) {
-
+            public void onResponse(Response<GalleryData> response, Retrofit retrofit) {
+                Log.d(TAG, "message " + response.message());
                 //prob should recycle the adapters instead of making a new one every time
 
                 //filter out only pngs and imgs and hope there are no weird cases
-                List<ImageData> filteredData = new ArrayList<>(data.getData().size());
+                GalleryData data = response.body();
+                List<ImageData> filteredData = new ArrayList<ImageData>(data.getData().size());
                 for(ImageData image: data.getData())
                 {
                     if(image.getIsAlbum() == false && (image.getType().equals("image/jpeg") || image.getType().equals("image/png")))
@@ -80,21 +78,21 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
                 currentlyProcessingAPI.set(false);
 
-                Log.d(TAG, response.toString());
                 Log.d(TAG, "Size of Dataset: " + data.getData().size());
+
             }
 
             @Override
-            public void failure(RetrofitError error){
-                currentlyProcessingAPI.set(false);
+            public void onFailure(Throwable t) {
+
             }
         };
 
 
-
         api = new ImgurAPI();
         currentlyProcessingAPI.set(true);
-        api.showDefaultGallery(this.callback, 0);
+        this.call = api.showDefaultGallery(0);
+        this.call.enqueue(this.callback);
 
         //implement button listener
         Button searchButton = (Button) this.findViewById(R.id.button);
@@ -138,8 +136,11 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
         this.adapter.reset();
 
+        new CancelTask().execute(this.call);
         EditText text = (EditText) findViewById(R.id.editText);
-        this.api.searchImgur(this.callback, text.getText().toString(), 0);
+        this.call = this.api.searchImgur(text.getText().toString(), 0);
+        this.call.enqueue(this.callback);
+
     }
 
     @Override
@@ -161,6 +162,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
         //Load more data
         //Loads next page once 90% through first page, rounds up
+        //this part looks disgusting, refactor later if I have time
         int threshhold = (int)Math.ceil(this.adapter.imageLocation * 0.9);
         if(firstVisibleItem + visibleItemCount >= threshhold)
         {
@@ -171,13 +173,20 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
                 //if default gallery
                 if(this.isDefaultGallery.get())
                 {
-                    this.api.showDefaultGallery(this.callback, this.adapter.pagesLoaded);
+                    //clean up later, this section is repeated multiple times
+                    new CancelTask().execute(this.call);
+                    this.call = this.api.showDefaultGallery(this.adapter.pagesLoaded);
+                    this.call.enqueue(this.callback);
+
                     this.adapter.pagesLoaded++;
                 }
                 else
                 {
+                    new CancelTask().execute(this.call);
                     EditText text = (EditText) findViewById(R.id.editText);
-                    this.api.searchImgur(this.callback, text.getText().toString(), this.adapter.pagesLoaded);
+                    this.call = this.api.searchImgur(text.getText().toString(), this.adapter.pagesLoaded);
+                    this.call.enqueue(this.callback);
+
                     this.adapter.pagesLoaded++;
                 }
             }
@@ -190,5 +199,19 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         }
 
         Log.d("onscroll", firstVisibleItem + " " + visibleItemCount + " " + totalItemCount );
+    }
+
+
+    //for canceling calls until the issue gets fixed
+    //https://github.com/square/okhttp/issues/1592
+    private class CancelTask extends AsyncTask<Call, Void, Void>
+    {
+        @Override
+        protected Void doInBackground(Call...params)
+        {
+            Call call = params[0];
+            call.cancel();
+            return null;
+        }
     }
 }

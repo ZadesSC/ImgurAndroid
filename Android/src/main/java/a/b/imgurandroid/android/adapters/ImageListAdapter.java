@@ -70,7 +70,7 @@ public class ImageListAdapter extends ArrayAdapter<ImageData>
     {
         this.list.add(new ImageData());
         this.notifyDataSetChanged();
-        Log.d("loadmoredata", "test");
+        //Log.d("loadmoredata", "test");
     }
 
     @Override

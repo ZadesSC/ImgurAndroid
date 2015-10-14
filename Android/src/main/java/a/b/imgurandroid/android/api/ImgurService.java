@@ -2,11 +2,9 @@ package a.b.imgurandroid.android.api;
 
 import a.b.imgurandroid.android.api.pojo.GalleryData;
 import a.b.imgurandroid.android.api.pojo.ImageData;
+import retrofit.Call;
 import retrofit.Callback;
-import retrofit.http.GET;
-import retrofit.http.PATCH;
-import retrofit.http.Path;
-import retrofit.http.Query;
+import retrofit.http.*;
 
 import java.util.List;
 
@@ -16,13 +14,13 @@ import java.util.List;
  */
 public interface ImgurService {
 
-    @GET("/gallery/hot/viral/{page}")
-    void getGallery(
-            @Path("page") int page, Callback<GalleryData> callback
+    @GET("gallery/hot/viral/{page}")
+    Call<GalleryData> getGallery(
+            @Path("page") int page, @Header("Authorization") String auth
             );
 
-    @GET("/gallery/search/time/{page}")
-    void getSearchResults(
-            @Query("q") String search, @Path("page") int page, Callback<GalleryData> callback
+    @GET("gallery/search/time/{page}")
+    Call<GalleryData> getSearchResults(
+            @Path("page") int page, @Header("Authorization") String auth, @Query("q") String search
             );
 }
