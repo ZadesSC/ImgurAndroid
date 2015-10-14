@@ -47,12 +47,12 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         setContentView(R.layout.activity_main);
 
         //show default gallery
-        ListView listView = (ListView) findViewById(R.id.listView);
+        GridView gridView = (GridView) findViewById(R.id.gridView);
 
         //set default adapter list
         ArrayList<ImageData> data = new ArrayList<ImageData>(100);
         this.adapter = new ImageListAdapter(this.getApplicationContext(), R.layout.list_item, data);
-        listView.setAdapter(adapter);
+        gridView.setAdapter(adapter);
 
 
         this.currentlyProcessingAPI = new AtomicBoolean(false);
@@ -102,11 +102,11 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
 
         //implement onitemclick for listview
-        listView.setOnItemClickListener(this);
-        listView.setClickable(true);
+        gridView.setOnItemClickListener(this);
+        gridView.setClickable(true);
 
         //add scroll listener
-        listView.setOnScrollListener(this);
+        gridView.setOnScrollListener(this);
     }
 
 

@@ -91,7 +91,7 @@ public class ImageListAdapter extends ArrayAdapter<ImageData>
             viewHolder = (ImageViewHolder) view.getTag();
         }
 
-        Picasso.with(getContext()).load(data.getLink()).resize(512,512).centerInside().into(viewHolder.image);
+        Picasso.with(getContext()).load(data.getLink()).fit().centerCrop().into(viewHolder.image);
         return view;
     }
 
