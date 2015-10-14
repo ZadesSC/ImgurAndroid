@@ -47,7 +47,13 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         setContentView(R.layout.activity_main);
 
         //show default gallery
-        this.adapter = null;
+        ListView listView = (ListView) findViewById(R.id.listView);
+
+        //set default adapter list
+        ArrayList<ImageData> data = new ArrayList<ImageData>(100);
+        this.adapter = new ImageListAdapter(this.getApplicationContext(), R.layout.list_item, data);
+        listView.setAdapter(adapter);
+
 
         this.currentlyProcessingAPI = new AtomicBoolean(false);
         this.isDefaultGallery = new AtomicBoolean(true);
@@ -56,7 +62,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
             @Override
             public void success(GalleryData data, Response response) {
 
-                ListView listView = (ListView) findViewById(R.id.listView);
                 //prob should recycle the adapters instead of making a new one every time
 
                 //filter out only pngs and imgs and hope there are no weird cases
@@ -72,7 +77,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
                 //adapter = new ImageListAdapter(getApplicationContext(), R.layout.list_item, filteredData);
                 adapter.addData(filteredData);
 
-                listView.setAdapter(adapter);
 
                 currentlyProcessingAPI.set(false);
 
@@ -86,9 +90,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
             }
         };
 
-        //set default adapter list
-        ArrayList<ImageData> data = new ArrayList<ImageData>(100);
-        this.adapter = new ImageListAdapter(this.getApplicationContext(), R.layout.list_item, data);
+
 
         api = new ImgurAPI();
         currentlyProcessingAPI.set(true);
@@ -100,7 +102,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
 
         //implement onitemclick for listview
-        ListView listView = (ListView) this.findViewById(R.id.listView);
         listView.setOnItemClickListener(this);
         listView.setClickable(true);
 
@@ -136,7 +137,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         this.isDefaultGallery.set(false);
 
         this.adapter.reset();
-        this.adapter.notifyDataSetChanged();
 
         EditText text = (EditText) findViewById(R.id.editText);
         this.api.searchImgur(this.callback, text.getText().toString(), 0);

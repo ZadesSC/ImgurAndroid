@@ -39,9 +39,10 @@ public class ImageListAdapter extends ArrayAdapter<ImageData>
     //Called to reset adapter for new data
     public synchronized void reset()
     {
-        this.list = new ArrayList<>(100);
+        this.list = new ArrayList<ImageData>(100);
         this.imageLocation = 0;
         this.pagesLoaded = 0;
+        this.notifyDataSetChanged();
     }
 
     /**
