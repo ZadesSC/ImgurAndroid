@@ -12,11 +12,11 @@
             android:layout_height="wrap_content"
             android:id="@+id/editText" android:layout_alignParentStart="true"
             android:inputType="text" android:layout_toStartOf="@+id/button" android:hint="Search Imgur"/>
-    <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Go"
-            android:id="@+id/button" android:layout_alignParentTop="true" android:layout_alignParentEnd="true"/>
+    <!--<Button-->
+            <!--android:layout_width="wrap_content"-->
+            <!--android:layout_height="wrap_content"-->
+            <!--android:text="Go"-->
+            <!--android:id="@+id/button" android:layout_alignParentTop="true" android:layout_alignParentEnd="true"/>-->
     <GridView
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"

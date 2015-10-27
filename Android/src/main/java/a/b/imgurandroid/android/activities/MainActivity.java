@@ -10,6 +10,8 @@ import android.content.Intent;
 
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -25,7 +27,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
-public class MainActivity extends Activity implements View.OnClickListener, AdapterView.OnItemClickListener,AbsListView.OnScrollListener {
+public class MainActivity extends Activity implements View.OnClickListener, AdapterView.OnItemClickListener,AbsListView.OnScrollListener, TextWatcher {
 
     private final String TAG = "MainActivity";
     private Callback<GalleryData> callback;
@@ -37,13 +39,22 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
     private AtomicBoolean currentlyProcessingAPI;
     private AtomicBoolean isDefaultGallery;
 
+    private EditText editText;
+
+    //For searching
+    private SearchTask searchTask;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        //Get editText
+        this.editText = (EditText) findViewById(R.id.editText);
+        this.searchTask = null;
+
         //show default gallery
-        GridView gridView = (GridView) findViewById(R.id.gridView);
+        final GridView gridView = (GridView) findViewById(R.id.gridView);
 
         //set default adapter list
         ArrayList<ImageData> data = new ArrayList<ImageData>(100);
@@ -75,7 +86,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
                 //adapter = new ImageListAdapter(getApplicationContext(), R.layout.list_item, filteredData);
                 adapter.addData(filteredData);
 
-
                 currentlyProcessingAPI.set(false);
 
                 Log.d(TAG, "Size of Dataset: " + data.getData().size());
@@ -95,8 +105,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         this.call.enqueue(this.callback);
 
         //implement button listener
-        Button searchButton = (Button) this.findViewById(R.id.button);
-        searchButton.setOnClickListener(this);
+//        Button searchButton = (Button) this.findViewById(R.id.button);
+//        searchButton.setOnClickListener(this);
 
 
         //implement onitemclick for listview
@@ -105,6 +115,9 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
         //add scroll listener
         gridView.setOnScrollListener(this);
+
+        //Add listener for textchanges, used to do live searching
+        editText.addTextChangedListener(this);
     }
 
 
@@ -132,14 +145,14 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
     @Override
     public void onClick(View v) {
-        this.isDefaultGallery.set(false);
-
-        this.adapter.reset();
-
-        new CancelTask().execute(this.call);
-        EditText text = (EditText) findViewById(R.id.editText);
-        this.call = this.api.searchImgur(text.getText().toString(), 0);
-        this.call.enqueue(this.callback);
+//        this.isDefaultGallery.set(false);
+//
+//        this.adapter.reset();
+//
+//        new CancelTask().execute(this.call);
+//        EditText text = (EditText) findViewById(R.id.editText);
+//        this.call = this.api.searchImgur(text.getText().toString(), 0);
+//        this.call.enqueue(this.callback);
 
     }
 
@@ -173,7 +186,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
                 //if default gallery
                 if(this.isDefaultGallery.get())
                 {
-                    //clean up later, this section is repeated multiple times
+                    //clean up later, this code snippet is repeated multiple times
                     new CancelTask().execute(this.call);
                     this.call = this.api.showDefaultGallery(this.adapter.pagesLoaded);
                     this.call.enqueue(this.callback);
@@ -201,6 +214,32 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         Log.d("onscroll", firstVisibleItem + " " + visibleItemCount + " " + totalItemCount );
     }
 
+    @Override
+    public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+    }
+
+    @Override
+    public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+    }
+
+    @Override
+    public void afterTextChanged(Editable s)
+    {
+        if(s != null && s.length() > 0)
+        {
+
+            if(this.searchTask != null && !this.searchTask.isCancelled())
+            {
+                this.searchTask.cancel(true);
+            }
+
+            this.searchTask = new SearchTask();
+            this.searchTask.execute(this.editText.getText().toString());
+        }
+    }
+
 
     //for canceling calls until the issue gets fixed
     //https://github.com/square/okhttp/issues/1592
@@ -213,5 +252,71 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
             call.cancel();
             return null;
         }
+    }
+
+    /**
+     * Created by zades on 10/26/2015.
+     *
+     * This is prob a very messy way to do it since the retrofit library also uses their own threading, but I couldn't
+     * think of another easy way to count time elapse.  Maybe use a custom runnable?  That sounds dangerous though.
+     *
+     * Should also move thie outside something else
+     */
+    public class SearchTask extends AsyncTask<String, Void, GalleryData>
+    {
+        private AtomicBoolean pastSleep = new AtomicBoolean(false);
+
+        @Override
+        protected void onPreExecute()
+        {
+            adapter.reset();
+        }
+
+        @Override
+        protected GalleryData doInBackground(String... params)
+        {
+            String searchString = params[0];
+
+
+            //I don't know about this.  Looks ugly.  Has to be better way :/
+            //Waits the async thread for half a second.  If more input is entered, this task will be canceled, else
+            //it'll go ahead with the api call to imgur
+            if(searchString != null)
+            {
+                try
+                {
+                    Thread.sleep(500);
+                    pastSleep.set(true);
+
+                    //reppeated code from onClick, should clean up later
+                    //I think retrofit is thread safe...
+                    isDefaultGallery.set(false);
+
+                    //adapter.reset();
+
+                    new CancelTask().execute(call);
+                    call = api.searchImgur(searchString, 0);
+                    call.enqueue(callback);
+                }
+                catch (InterruptedException e)
+                {
+                    e.printStackTrace();
+                }
+            }
+
+            return null;
+        }
+
+        @Override
+        protected void onCancelled()
+        {
+            //ideally we would return the user to the previous search results, but for now I want to get this working
+            if(pastSleep.get())
+            {
+                adapter.reset();
+                new CancelTask().execute(call);
+            }
+        }
+
     }
 }
