@@ -6,8 +6,10 @@ import a.b.imgurandroid.android.api.ImgurAPI;
 import a.b.imgurandroid.android.api.pojo.GalleryData;
 import a.b.imgurandroid.android.api.pojo.ImageData;
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.text.Editable;
@@ -30,6 +32,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class MainActivity extends Activity implements View.OnClickListener, AdapterView.OnItemClickListener,AbsListView.OnScrollListener, TextWatcher {
 
     private final String TAG = "MainActivity";
+
+    public static final String PREFERENCES = "myPrefs";
+    public static final String LAST_SEARCH = "lastSearch";
+
+    private SharedPreferences preferences;
+
     private Callback<GalleryData> callback;
     private Call<GalleryData> call;
     private ImgurAPI api;
@@ -48,6 +56,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        this.preferences = getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE);
 
         //Get editText
         this.editText = (EditText) findViewById(R.id.editText);
@@ -74,13 +84,24 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
                 //filter out only pngs and imgs and hope there are no weird cases
                 GalleryData data = response.body();
-                List<ImageData> filteredData = new ArrayList<ImageData>(data.getData().size());
-                for(ImageData image: data.getData())
+                List<ImageData> filteredData = null;
+                if(data != null)
                 {
-                    if(image.getIsAlbum() == false && (image.getType().equals("image/jpeg") || image.getType().equals("image/png")))
+                    filteredData = new ArrayList<ImageData>(data.getData().size());
+                    for(ImageData image: data.getData())
                     {
-                        filteredData.add(image);
+                        if(image.getIsAlbum() == false && (image.getType().equals("image/jpeg") || image.getType().equals("image/png")))
+                        {
+                            filteredData.add(image);
+                        }
                     }
+
+                    Log.d(TAG, "Size of Dataset: " + data.getData().size());
+                }
+                else
+                {
+                    //just in case some dumb shit happens
+                    filteredData = new ArrayList<>(100);
                 }
 
                 //adapter = new ImageListAdapter(getApplicationContext(), R.layout.list_item, filteredData);
@@ -88,7 +109,6 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
                 currentlyProcessingAPI.set(false);
 
-                Log.d(TAG, "Size of Dataset: " + data.getData().size());
 
             }
 
@@ -98,13 +118,28 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
             }
         };
 
+        //Initial api call, if history exists, call that, else call default gallery
+        this.api = new ImgurAPI();
 
-        api = new ImgurAPI();
-        currentlyProcessingAPI.set(true);
-        this.call = api.showDefaultGallery(0);
-        this.call.enqueue(this.callback);
+        String history = this.preferences.getString(LAST_SEARCH, "");
 
-        //implement button listener
+        if(!history.equals(""))
+        {
+            this.isDefaultGallery.set(false);
+            this.adapter.reset();
+            this.call = this.api.searchImgur(history, 0);
+            this.call.enqueue(this.callback);
+
+            this.editText.setText(history);
+        }
+        else
+        {
+            currentlyProcessingAPI.set(true);
+            this.call = api.showDefaultGallery(0);
+            this.call.enqueue(this.callback);
+        }
+
+//        implement button listener
 //        Button searchButton = (Button) this.findViewById(R.id.button);
 //        searchButton.setOnClickListener(this);
 
@@ -176,7 +211,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         //Load more data
         //Loads next page once 90% through first page, rounds up
         //this part looks disgusting, refactor later if I have time
-        int threshhold = (int)Math.ceil(this.adapter.imageLocation * 0.9);
+        int threshhold = (int)Math.ceil(totalItemCount * 0.9);
         if(firstVisibleItem + visibleItemCount >= threshhold)
         {
             //call next page api if api is not currently being called already
@@ -227,7 +262,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
     @Override
     public void afterTextChanged(Editable s)
     {
-        if(s != null && s.length() > 0)
+        if(s != null && s.length() > 0 && !this.editText.getText().toString().trim().equals(""))
         {
 
             if(this.searchTask != null && !this.searchTask.isCancelled())
@@ -237,6 +272,11 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
             this.searchTask = new SearchTask();
             this.searchTask.execute(this.editText.getText().toString());
+
+            //add to history, even if it fails
+            SharedPreferences.Editor editor = preferences.edit();
+            editor.putString(LAST_SEARCH, this.editText.getText().toString());
+            editor.commit();
         }
     }
 
