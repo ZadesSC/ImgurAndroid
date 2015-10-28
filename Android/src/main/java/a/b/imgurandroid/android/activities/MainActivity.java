@@ -3,6 +3,7 @@ package a.b.imgurandroid.android.activities;
 import a.b.imgurandroid.android.R;
 import a.b.imgurandroid.android.adapters.ImageListAdapter;
 import a.b.imgurandroid.android.api.ImgurAPI;
+import a.b.imgurandroid.android.api.ImgurCallback;
 import a.b.imgurandroid.android.api.pojo.GalleryData;
 import a.b.imgurandroid.android.api.pojo.ImageData;
 import android.app.Activity;
@@ -37,6 +38,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
     public static final String LAST_SEARCH = "lastSearch";
 
     private SharedPreferences preferences;
+    private SearchTask searchTask;
 
     private Callback<GalleryData> callback;
     private Call<GalleryData> call;
@@ -48,9 +50,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
     private AtomicBoolean isDefaultGallery;
 
     private EditText editText;
-
-    //For searching
-    private SearchTask searchTask;
+    private GridView gridView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,59 +64,16 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         this.searchTask = null;
 
         //show default gallery
-        final GridView gridView = (GridView) findViewById(R.id.gridView);
+        this.gridView = (GridView) findViewById(R.id.gridView);
 
         //set default adapter list
-        ArrayList<ImageData> data = new ArrayList<ImageData>(100);
-        this.adapter = new ImageListAdapter(this.getApplicationContext(), R.layout.list_item, data);
-        gridView.setAdapter(adapter);
-
+        this.adapter = new ImageListAdapter(this.getApplicationContext(), R.layout.list_item, new ArrayList<ImageData>(ImageListAdapter.DEFAULT_SIZE));
+        this.gridView.setAdapter(adapter);
 
         this.currentlyProcessingAPI = new AtomicBoolean(false);
         this.isDefaultGallery = new AtomicBoolean(true);
 
-        //move this section out?
-        this.callback = new Callback<GalleryData>() {
-            @Override
-            public void onResponse(Response<GalleryData> response, Retrofit retrofit) {
-                Log.d(TAG, "message " + response.message());
-                //prob should recycle the adapters instead of making a new one every time
-
-                //filter out only pngs and imgs and hope there are no weird cases
-                GalleryData data = response.body();
-                List<ImageData> filteredData = null;
-                if(data != null)
-                {
-                    filteredData = new ArrayList<ImageData>(data.getData().size());
-                    for(ImageData image: data.getData())
-                    {
-                        if(image.getIsAlbum() == false && (image.getType().equals("image/jpeg") || image.getType().equals("image/png")))
-                        {
-                            filteredData.add(image);
-                        }
-                    }
-
-                    Log.d(TAG, "Size of Dataset: " + data.getData().size());
-                }
-                else
-                {
-                    //just in case some dumb shit happens
-                    filteredData = new ArrayList<>(100);
-                }
-
-                //adapter = new ImageListAdapter(getApplicationContext(), R.layout.list_item, filteredData);
-                adapter.addData(filteredData);
-
-                currentlyProcessingAPI.set(false);
-
-
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-
-            }
-        };
+        this.callback = new ImgurCallback(this.adapter, this.currentlyProcessingAPI);
 
         //Initial api call, if history exists, call that, else call default gallery
         this.api = new ImgurAPI();
@@ -139,20 +96,11 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
             this.call.enqueue(this.callback);
         }
 
-//        implement button listener
-//        Button searchButton = (Button) this.findViewById(R.id.button);
-//        searchButton.setOnClickListener(this);
-
-
-        //implement onitemclick for listview
-        gridView.setOnItemClickListener(this);
-        gridView.setClickable(true);
-
-        //add scroll listener
-        gridView.setOnScrollListener(this);
-
-        //Add listener for textchanges, used to do live searching
-        editText.addTextChangedListener(this);
+        //Listeners
+        this.gridView.setOnItemClickListener(this);
+        this.gridView.setClickable(true);
+        this.gridView.setOnScrollListener(this);
+        this.editText.addTextChangedListener(this);
     }
 
 

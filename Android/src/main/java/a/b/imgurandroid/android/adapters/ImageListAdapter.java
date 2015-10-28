@@ -22,6 +22,8 @@ import java.util.List;
  */
 public class ImageListAdapter extends ArrayAdapter<ImageData>
 {
+    public static final int DEFAULT_SIZE = 100;
+
     private final Context context;
     public List<ImageData> list;
     public int imageLocation;
