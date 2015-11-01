@@ -31,6 +31,7 @@ public class HistoryManager
         if(savedStr.equals(""))
         {
             this.historyStack = new Stack();
+            this.historyStack.push("");
         }
         else
         {
