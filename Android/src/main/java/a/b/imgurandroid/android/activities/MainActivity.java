@@ -5,15 +5,14 @@ import a.b.imgurandroid.android.adapters.ImageListAdapter;
 import a.b.imgurandroid.android.api.ImgurAPI;
 import a.b.imgurandroid.android.api.ImgurCallback;
 import a.b.imgurandroid.android.api.pojo.GalleryData;
-import a.b.imgurandroid.android.api.pojo.ImageData;
+import a.b.imgurandroid.android.managers.HistoryManager;
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
 
-import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.text.Editable;
+import android.text.Selection;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.Menu;
@@ -22,11 +21,7 @@ import android.view.View;
 import android.widget.*;
 import retrofit.Call;
 import retrofit.Callback;
-import retrofit.Response;
-import retrofit.Retrofit;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
@@ -34,10 +29,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
     private final String TAG = "MainActivity";
 
-    public static final String PREFERENCES = "myPrefs";
-    public static final String LAST_SEARCH = "lastSearch";
-
-    private SharedPreferences preferences;
+    private HistoryManager historyManager;
     private SearchTask searchTask;
 
     private Callback<GalleryData> callback;
@@ -47,17 +39,18 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
     private ImageListAdapter adapter;
 
     private AtomicBoolean currentlyProcessingAPI;
-    private AtomicBoolean isDefaultGallery;
 
     private EditText editText;
     private GridView gridView;
+
+    private boolean hitBack = false;  //flag used to check if the user hit back
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        this.preferences = getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE);
+        this.historyManager = new HistoryManager(this);
 
         //Get editText
         this.editText = (EditText) findViewById(R.id.editText);
@@ -67,34 +60,25 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         this.gridView = (GridView) findViewById(R.id.gridView);
 
         //set default adapter list
-        this.adapter = new ImageListAdapter(this.getApplicationContext(), R.layout.list_item, new ArrayList<ImageData>(ImageListAdapter.DEFAULT_SIZE));
+        this.adapter = new ImageListAdapter(this.getApplicationContext(), R.layout.list_item);
         this.gridView.setAdapter(adapter);
 
         this.currentlyProcessingAPI = new AtomicBoolean(false);
-        this.isDefaultGallery = new AtomicBoolean(true);
 
         this.callback = new ImgurCallback(this.adapter, this.currentlyProcessingAPI);
 
         //Initial api call, if history exists, call that, else call default gallery
         this.api = new ImgurAPI();
 
-        String history = this.preferences.getString(LAST_SEARCH, "");
-
-        if(!history.equals(""))
+        String retrievedHistory = this.historyManager.retrieve();
+        if(retrievedHistory != null && !retrievedHistory.equals(""))
         {
-            this.isDefaultGallery.set(false);
-            this.adapter.reset();
-            this.call = this.api.searchImgur(history, 0);
-            this.call.enqueue(this.callback);
+            this.editText.setText(retrievedHistory);
+            Selection.setSelection(this.editText.getText(), retrievedHistory.length());
+        }
 
-            this.editText.setText(history);
-        }
-        else
-        {
-            currentlyProcessingAPI.set(true);
-            this.call = api.showDefaultGallery(0);
-            this.call.enqueue(this.callback);
-        }
+        this.call = this.api.searchImgur(retrievedHistory, 0);
+        this.call.enqueue(this.callback);
 
         //Listeners
         this.gridView.setOnItemClickListener(this);
@@ -160,31 +144,21 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         //Loads next page once 90% through first page, rounds up
         //this part looks disgusting, refactor later if I have time
         int threshhold = (int)Math.ceil(totalItemCount * 0.9);
-        if(firstVisibleItem + visibleItemCount >= threshhold)
+        if(firstVisibleItem + visibleItemCount >= threshhold && this.adapter.dataSize != 0)
         {
             //call next page api if api is not currently being called already
             if(!this.currentlyProcessingAPI.get())
             {
                 this.currentlyProcessingAPI.set(true);
-                //if default gallery
-                if(this.isDefaultGallery.get())
-                {
-                    //clean up later, this code snippet is repeated multiple times
-                    new CancelTask().execute(this.call);
-                    this.call = this.api.showDefaultGallery(this.adapter.pagesLoaded);
-                    this.call.enqueue(this.callback);
 
-                    this.adapter.pagesLoaded++;
-                }
-                else
-                {
-                    new CancelTask().execute(this.call);
-                    EditText text = (EditText) findViewById(R.id.editText);
-                    this.call = this.api.searchImgur(text.getText().toString(), this.adapter.pagesLoaded);
-                    this.call.enqueue(this.callback);
+                Log.d(TAG, "enq from onscroll");
 
-                    this.adapter.pagesLoaded++;
-                }
+                this.call.cancel();
+                EditText text = (EditText) findViewById(R.id.editText);
+                this.call = this.api.searchImgur(text.getText().toString(), this.adapter.pagesLoaded);
+                this.call.enqueue(this.callback);
+
+                this.adapter.pagesLoaded++;
             }
         }
 
@@ -210,7 +184,10 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
     @Override
     public void afterTextChanged(Editable s)
     {
-        if(s != null && s.length() > 0 && !this.editText.getText().toString().trim().equals(""))
+        String editableStr = this.editText.getText().toString().trim();
+        Log.d(TAG, "Editable Text: " + editableStr);
+
+        if(s != null)
         {
 
             if(this.searchTask != null && !this.searchTask.isCancelled())
@@ -218,28 +195,39 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
                 this.searchTask.cancel(true);
             }
 
+            this.adapter.reset();
             this.searchTask = new SearchTask();
-            this.searchTask.execute(this.editText.getText().toString());
+            this.searchTask.execute(editableStr);
+        }
 
-            //add to history, even if it fails
-            SharedPreferences.Editor editor = preferences.edit();
-            editor.putString(LAST_SEARCH, this.editText.getText().toString());
-            editor.commit();
+        if(this.hitBack)
+        {
+            this.hitBack = false;
+        }
+        else
+        {
+            //this.historyManager.store(editableStr);
         }
     }
 
+    /**
+     * load previous search result
+     */
+    @Override
+    public void onBackPressed() {
+        this.hitBack = true;
 
-    //for canceling calls until the issue gets fixed
-    //https://github.com/square/okhttp/issues/1592
-    private class CancelTask extends AsyncTask<Call, Void, Void>
-    {
-        @Override
-        protected Void doInBackground(Call...params)
+        String retreieveStr = this.historyManager.retrieve();
+
+        if(retreieveStr == null)
         {
-            Call call = params[0];
-            call.cancel();
-            return null;
+            super.onBackPressed();
+            return;
         }
+
+        this.editText.setText(retreieveStr);
+        if (retreieveStr.length() > 0)
+            this.editText.setSelection(retreieveStr.length());
     }
 
     /**
@@ -250,9 +238,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
      *
      * Should also move thie outside something else
      */
-    public class SearchTask extends AsyncTask<String, Void, GalleryData>
-    {
-        private AtomicBoolean pastSleep = new AtomicBoolean(false);
+    public class SearchTask extends AsyncTask<String, Void, GalleryData> {
 
         @Override
         protected void onPreExecute()
@@ -273,22 +259,22 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
             {
                 try
                 {
-                    Thread.sleep(500);
-                    pastSleep.set(true);
+                    Thread.sleep(1000);
+                    if(this.isCancelled())
+                    {
+                        return null;
+                    }
 
-                    //reppeated code from onClick, should clean up later
-                    //I think retrofit is thread safe...
-                    isDefaultGallery.set(false);
-
-                    //adapter.reset();
-
-                    new CancelTask().execute(call);
+                    Log.d(TAG, "enq from searchtask");
+                    call.cancel();
                     call = api.searchImgur(searchString, 0);
                     call.enqueue(callback);
                 }
                 catch (InterruptedException e)
                 {
                     e.printStackTrace();
+
+                    //remove the entry in history is it gets interrupted
                 }
             }
 
@@ -298,13 +284,14 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         @Override
         protected void onCancelled()
         {
-            //ideally we would return the user to the previous search results, but for now I want to get this working
-            if(pastSleep.get())
-            {
-                adapter.reset();
-                new CancelTask().execute(call);
-            }
+
         }
 
+        @Override
+        protected void onPostExecute(GalleryData data)
+        {
+            //stores text after a non-cancelled search
+            historyManager.store(editText.getText().toString());
+        }
     }
 }

@@ -1,4 +1,4 @@
-package a.b.imgurandroid.android.history;
+package a.b.imgurandroid.android.managers;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -11,7 +11,7 @@ import java.util.Stack;
 /**
  * Created by zades on 10/31/2015.
  *
- * Idea behind this is to store the array of history (up to a limit of 10 currently) in shared preferences by
+ * Idea behind this is to store the array of history in shared preferences by
  * serializing the array.  For a series of strings, it feels too costly to use the sql or internal storage.
  */
 public class HistoryManager
@@ -45,7 +45,7 @@ public class HistoryManager
         this.saveStack();
     }
 
-    public String retreive()
+    public String retrieve()
     {
         if(!this.historyStack.isEmpty())
         {
@@ -60,6 +60,7 @@ public class HistoryManager
     {
         SharedPreferences.Editor editor = prefs.edit();
         editor.putString(HISTORY, new Gson().toJson(this.historyStack));
+        editor.commit();
     }
 
 }

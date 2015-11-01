@@ -3,10 +3,7 @@ package a.b.imgurandroid.android.adapters;
 import a.b.imgurandroid.android.R;
 import a.b.imgurandroid.android.api.pojo.ImageData;
 import a.b.imgurandroid.android.viewholders.ImageViewHolder;
-import android.app.Activity;
 import android.content.Context;
-import android.text.Layout;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,20 +25,29 @@ public class ImageListAdapter extends ArrayAdapter<ImageData>
     public List<ImageData> list;
     public int imageLocation;
     public int pagesLoaded; //for paging
+    public int dataSize;
 
-    public ImageListAdapter(Context context, int resource, List<ImageData> images)
-    {
-        super(context, resource, images);
-        this.list = images;
+    public ImageListAdapter(Context context, int resource) {
+        super(context, resource, new ArrayList<ImageData>());
+
+        //create and fill custom arraylist
+        this.list = new ArrayList<>(DEFAULT_SIZE);
+        for (int x = 0; x < DEFAULT_SIZE; x++)
+        {
+            this.list.add(new ImageData());
+        }
+
         this.context = context;
         this.imageLocation = 0;
         this.pagesLoaded = 0;
+        this.dataSize = 0;
+        this.notifyDataSetChanged();
     }
 
     //Called to reset adapter for new data
     public synchronized void reset()
     {
-        this.list = new ArrayList<ImageData>(100);
+        this.list = new ArrayList<ImageData>(DEFAULT_SIZE);
         this.imageLocation = 0;
         this.pagesLoaded = 0;
         this.notifyDataSetChanged();
@@ -93,7 +99,10 @@ public class ImageListAdapter extends ArrayAdapter<ImageData>
             viewHolder = (ImageViewHolder) view.getTag();
         }
 
-        Picasso.with(getContext()).load(data.getLink()).fit().centerCrop().into(viewHolder.image);
+        if(data.getLink() != null)
+        {
+            Picasso.with(getContext()).load(data.getLink()).fit().centerCrop().into(viewHolder.image);
+        }
         return view;
     }
 

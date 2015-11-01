@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by zades on 10/27/2015.
+ *
  */
 public class ImgurCallback implements Callback<GalleryData>
 {
@@ -36,7 +37,7 @@ public class ImgurCallback implements Callback<GalleryData>
         //filter out only pngs and imgs and hope there are no weird cases
         GalleryData data = null;
 
-        if(data == null)
+        if(response == null || response.body() == null)
         {
             Log.e(TAG, "No body in response");
             return;
@@ -53,7 +54,7 @@ public class ImgurCallback implements Callback<GalleryData>
         }
 
         Log.d(TAG, "Size of Dataset: " + data.getData().size());
-
+        this.adapter.dataSize = data.getData().size();
         this.adapter.addData(filteredData);
 
         this.currentlyProcessingAPI.set(false);

@@ -7,6 +7,8 @@ import retrofit.Call;
 import retrofit.GsonConverterFactory;
 import retrofit.Retrofit;
 
+import javax.security.auth.callback.Callback;
+
 /**
  * Created by zades on 10/7/2015.
  */
@@ -32,13 +34,21 @@ public class ImgurAPI {
         this.service = retrofit.create(ImgurService.class);
     }
 
+    /**
+     * Searches imgur, if strinig is empty, return default gallery
+     * @param search
+     * @param page
+     * @return
+     */
     public Call<GalleryData> searchImgur(String search, int page)
     {
-        return this.service.getSearchResults(page, "Client-ID " + this.clientId, search);
-    }
-
-    public Call<GalleryData> showDefaultGallery(int page)
-    {
-        return this.service.getGallery(page, "Client-ID " + this.clientId);
+        if(search == null ||search.equals(""))
+        {
+            return this.service.getGallery(page, "Client-ID " + this.clientId);
+        }
+        else
+        {
+            return this.service.getSearchResults(page, "Client-ID " + this.clientId, search);
+        }
     }
 }
