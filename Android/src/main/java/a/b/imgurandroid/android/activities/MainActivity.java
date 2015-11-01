@@ -154,6 +154,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
                 this.currentlyProcessingAPI.set(true);
 
                 Log.d(TAG, "enq from onscroll");
+                Log.d(TAG, "datasize: " + this.adapter.dataSize);
 
                 new CancelTask().execute(call);
                 EditText text = (EditText) findViewById(R.id.editText);

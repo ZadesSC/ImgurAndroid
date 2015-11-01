@@ -50,6 +50,7 @@ public class ImageListAdapter extends ArrayAdapter<ImageData>
         this.list = new ArrayList<ImageData>(DEFAULT_SIZE);
         this.imageLocation = 0;
         this.pagesLoaded = 0;
+        this.dataSize = 0;
         this.notifyDataSetChanged();
     }
 
