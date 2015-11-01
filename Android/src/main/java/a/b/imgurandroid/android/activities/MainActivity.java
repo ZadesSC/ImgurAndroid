@@ -225,6 +225,11 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
             return;
         }
 
+        if(retreieveStr.equals(this.editText.getText().toString()))
+        {
+            retreieveStr = this.historyManager.retrieve();
+        }
+        
         this.editText.setText(retreieveStr);
         if (retreieveStr.length() > 0)
             this.editText.setSelection(retreieveStr.length());
