@@ -70,7 +70,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         //Initial api call, if history exists, call that, else call default gallery
         this.api = new ImgurAPI();
 
-        String retrievedHistory = this.historyManager.retrieve();
+        String retrievedHistory = this.historyManager.peek();
         if(retrievedHistory != null && !retrievedHistory.equals(""))
         {
             this.editText.setText(retrievedHistory);
@@ -155,15 +155,14 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
                 this.call.cancel();
                 EditText text = (EditText) findViewById(R.id.editText);
+                this.adapter.pagesLoaded++;
                 this.call = this.api.searchImgur(text.getText().toString(), this.adapter.pagesLoaded);
                 this.call.enqueue(this.callback);
-
-                this.adapter.pagesLoaded++;
             }
         }
 
         //Load more empty spaces
-        if(firstVisibleItem + visibleItemCount + 5 >= totalItemCount)
+        if(firstVisibleItem + visibleItemCount + 5 >= totalItemCount && this.adapter.dataSize != 0)
         {
             this.adapter.loadMoreData();
         }
@@ -206,7 +205,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         }
         else
         {
-            //this.historyManager.store(editableStr);
+            //this.historyManager.push(editableStr);
         }
     }
 
@@ -217,19 +216,15 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
     public void onBackPressed() {
         this.hitBack = true;
 
-        String retreieveStr = this.historyManager.retrieve();
+        //First one on the stack is always the current one
+        this.historyManager.pop();
+        String retreieveStr = this.historyManager.peek();
 
         if(retreieveStr == null)
         {
             super.onBackPressed();
             return;
         }
-
-        if(retreieveStr.equals(this.editText.getText().toString()))
-        {
-            retreieveStr = this.historyManager.retrieve();
-        }
-        
         this.editText.setText(retreieveStr);
         if (retreieveStr.length() > 0)
             this.editText.setSelection(retreieveStr.length());
@@ -296,7 +291,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         protected void onPostExecute(GalleryData data)
         {
             //stores text after a non-cancelled search
-            historyManager.store(editText.getText().toString());
+            historyManager.push(editText.getText().toString());
         }
     }
 }

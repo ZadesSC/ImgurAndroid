@@ -11,7 +11,7 @@ import java.util.Stack;
 /**
  * Created by zades on 10/31/2015.
  *
- * Idea behind this is to store the array of history in shared preferences by
+ * Idea behind this is to push the array of history in shared preferences by
  * serializing the array.  For a series of strings, it feels too costly to use the sql or internal storage.
  */
 public class HistoryManager
@@ -39,13 +39,13 @@ public class HistoryManager
 
     }
 
-    public void store(String str)
+    public void push(String str)
     {
         this.historyStack.push(str);
         this.saveStack();
     }
 
-    public String retrieve()
+    public String pop()
     {
         if(!this.historyStack.isEmpty())
         {
@@ -53,6 +53,16 @@ public class HistoryManager
             this.saveStack();
             return poppedHistory;
         }
+        return null;
+    }
+
+    public String peek()
+    {
+        if(!this.historyStack.isEmpty())
+        {
+            return this.historyStack.peek();
+        }
+
         return null;
     }
 
