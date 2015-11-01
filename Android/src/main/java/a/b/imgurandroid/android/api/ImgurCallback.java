@@ -22,9 +22,11 @@ public class ImgurCallback implements Callback<GalleryData>
 
     private ImageListAdapter adapter;
     private AtomicBoolean currentlyProcessingAPI;
+    private boolean refreshList;
 
-    public ImgurCallback(ImageListAdapter adapter, AtomicBoolean currentlyProcessingAPI)
+    public ImgurCallback(ImageListAdapter adapter, AtomicBoolean currentlyProcessingAPI, boolean refreshList)
     {
+        this.refreshList = refreshList;
         this.adapter = adapter;
         this.currentlyProcessingAPI = currentlyProcessingAPI;
     }
@@ -52,6 +54,9 @@ public class ImgurCallback implements Callback<GalleryData>
                 filteredData.add(image);
             }
         }
+
+        if(this.refreshList)
+            this.adapter.reset();
 
         Log.d(TAG, "Size of Dataset: " + data.getData().size());
         this.adapter.dataSize = data.getData().size();

@@ -32,7 +32,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
     private HistoryManager historyManager;
     private SearchTask searchTask;
 
-    private Callback<GalleryData> callback;
+    private Callback<GalleryData> newSearchCallback;
+    private Callback<GalleryData> scrollCallback;
     private Call<GalleryData> call;
     private ImgurAPI api;
 
@@ -65,7 +66,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
         this.currentlyProcessingAPI = new AtomicBoolean(false);
 
-        this.callback = new ImgurCallback(this.adapter, this.currentlyProcessingAPI);
+        this.newSearchCallback = new ImgurCallback(this.adapter, this.currentlyProcessingAPI, true);
+        this.scrollCallback = new ImgurCallback(this.adapter, this.currentlyProcessingAPI, false);
 
         //Initial api call, if history exists, call that, else call default gallery
         this.api = new ImgurAPI();
@@ -78,7 +80,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         }
 
         this.call = this.api.searchImgur(retrievedHistory, 0);
-        this.call.enqueue(this.callback);
+        this.call.enqueue(this.newSearchCallback);
 
         //Listeners
         this.gridView.setOnItemClickListener(this);
@@ -119,7 +121,7 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 //        new CancelTask().execute(this.call);
 //        EditText text = (EditText) findViewById(R.id.editText);
 //        this.call = this.api.searchImgur(text.getText().toString(), 0);
-//        this.call.enqueue(this.callback);
+//        this.call.enqueue(this.newSearchCallback);
 
     }
 
@@ -153,11 +155,11 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
 
                 Log.d(TAG, "enq from onscroll");
 
-                this.call.cancel();
+                new CancelTask().execute(call);
                 EditText text = (EditText) findViewById(R.id.editText);
                 this.adapter.pagesLoaded++;
                 this.call = this.api.searchImgur(text.getText().toString(), this.adapter.pagesLoaded);
-                this.call.enqueue(this.callback);
+                this.call.enqueue(this.scrollCallback);
             }
         }
 
@@ -266,15 +268,14 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
                     }
 
                     Log.d(TAG, "enq from searchtask");
-                    call.cancel();
+                    new CancelTask().execute(call);
                     call = api.searchImgur(searchString, 0);
-                    call.enqueue(callback);
+                    call.enqueue(newSearchCallback);
                 }
                 catch (InterruptedException e)
                 {
                     e.printStackTrace();
 
-                    //remove the entry in history is it gets interrupted
                 }
             }
 
@@ -292,6 +293,17 @@ public class MainActivity extends Activity implements View.OnClickListener, Adap
         {
             //stores text after a non-cancelled search
             historyManager.push(editText.getText().toString());
+        }
+    }
+
+    private class CancelTask extends AsyncTask<Call, Void, Void>
+    {
+
+        @Override
+        protected Void doInBackground(Call... params) {
+            Call call = params[0];
+            call.cancel();
+            return null;
         }
     }
 }

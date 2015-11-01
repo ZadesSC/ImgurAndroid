@@ -19,7 +19,7 @@ import java.util.List;
  */
 public class ImageListAdapter extends ArrayAdapter<ImageData>
 {
-    public static final int DEFAULT_SIZE = 100;
+    public static final int DEFAULT_SIZE = 10;
 
     private final Context context;
     public List<ImageData> list;
@@ -99,7 +99,7 @@ public class ImageListAdapter extends ArrayAdapter<ImageData>
             viewHolder = (ImageViewHolder) view.getTag();
         }
 
-        
+
         Picasso.with(getContext()).load(data.getLink()).fit().centerCrop().into(viewHolder.image);
 
         return view;
